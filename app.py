@@ -3,11 +3,11 @@ import streamlit.components.v1 as components
 import calendar
 from datetime import date
 
-st.set_page_config(layout="wide", page_title="Roster Portrait Mode")
+st.set_page_config(layout="wide", page_title="Jadwal Kerja Otomatis by Prima Hariyasa")
 
 # --- SIDEBAR INPUT ---
 with st.sidebar:
-    st.header("📋 Data Penjadwalan")
+    st.header("📦 Pengaturan")
     divisi = st.text_input("Nama Divisi", "OFFICE")
     tahun = st.number_input("Tahun", value=2026)
     bulan = st.selectbox("Bulan", range(1, 13), index=3, format_func=lambda x: calendar.month_name[x])
