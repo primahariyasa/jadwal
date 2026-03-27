@@ -1,216 +1,220 @@
 import streamlit as st
-import pandas as pd
 import calendar
 from datetime import date
 
-# Konfigurasi halaman
-st.set_page_config(layout="wide", page_title="Roster Pro | Designer Edition")
+# Konfigurasi Halaman
+st.set_page_config(layout="wide", page_title="Sistem Penjadwalan Kerja")
 
-# --- UI PREMIUM: GOOGLE FONTS & TAILWIND CUSTOM ---
+# --- CSS STABLE UNTUK TAMPILAN & PRINT ---
 st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-
 <style>
-    /* Global Styles */
+    /* Font Global */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    
     html, body, [class*="st-"] {
-        font-family: 'Poppins', sans-serif !important;
+        font-family: 'Inter', sans-serif !important;
     }
 
-    /* CSS Khusus Cetak (A4 Landscape) */
+    /* Sembunyikan elemen Streamlit saat print */
     @media print {
-        @page { size: A4 landscape; margin: 10mm; }
-        /* Sembunyikan SEMUA elemen Streamlit saat cetak */
-        header, footer, .no-print, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton {
+        header, footer, .no-print, [data-testid="stSidebar"], [data-testid="stHeader"] {
             display: none !important;
         }
         .main .block-container { padding: 0 !important; margin: 0 !important; }
-        .print-container { width: 100% !important; zoom: 90%; }
-        table { border: 2px solid #000 !important; }
-        th, td { border: 1px solid #000 !important; -webkit-print-color-adjust: exact; }
+        .print-container { width: 100% !important; margin: 0 !important; }
+        table { font-size: 10pt !important; width: 100% !important; border-collapse: collapse !important; }
+        th, td { border: 1px solid #000 !important; padding: 4px !important; }
+        .s-off { background-color: #ffcccc !important; color: red !important; }
+        .s-pagi { background-color: #d1f7d1 !important; }
+        .s-mid { background-color: #fff4cc !important; }
+        .s-full { background-color: #d1e9ff !important; }
     }
 
-    /* Tampilan Tabel Modern */
-    .table-container {
+    /* UI Desktop */
+    .table-wrapper {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
         padding: 20px;
-    }
-    
-    .roster-table { width: 100%; border-collapse: collapse; }
-    .roster-table th { 
-        background-color: #1e293b; color: white; 
-        padding: 12px 8px; text-transform: uppercase; font-size: 13px; letter-spacing: 0.05em;
-    }
-    .roster-table td { 
-        padding: 10px 6px; text-align: center; font-size: 14px; font-weight: 600; 
         border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-top: 10px;
     }
 
-    /* Palette Warna Shift Creative */
-    .s-off { background-color: #fee2e2 !important; color: #991b1b !important; border-left: 4px solid #ef4444 !important; }
-    .s-pagi { background-color: #f0fdf4 !important; color: #166534 !important; }
-    .s-mid { background-color: #fefce8 !important; color: #854d0e !important; }
-    .s-full { background-color: #eff6ff !important; color: #1e40af !important; border: 1.5px dashed #3b82f6 !important; }
-    
-    /* Tombol Print Custom */
-    .btn-print {
-        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-        color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold;
-        cursor: pointer; transition: all 0.3s; border: none; display: inline-flex; align-items: center; gap: 8px;
+    .roster-table {
+        width: 100%;
+        border-collapse: collapse;
+        color: #1e293b;
     }
-    .btn-print:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4); }
+
+    .roster-table th {
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        padding: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .roster-table td {
+        border: 1px solid #cbd5e1;
+        padding: 8px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    /* Warna Shift */
+    .s-off { background-color: #fee2e2; color: #b91c1c; }
+    .s-pagi { background-color: #f0fdf4; color: #15803d; }
+    .s-mid { background-color: #fefce8; color: #a16207; }
+    .s-full { background-color: #eff6ff; color: #1d4ed8; }
+
+    /* Tombol Cetak */
+    .print-btn {
+        background-color: #2563eb;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+    .print-btn:hover { background-color: #1d4ed8; }
 </style>
 """, unsafe_allow_html=True)
 
-# === SIDEBAR CONTROL ===
+# === SIDEBAR (LOGIC CONTROL) ===
 with st.sidebar:
-    st.markdown("<h1 class='text-2xl font-extrabold text-indigo-600 mb-6'>ROSTER PRO <span class='text-xs font-light text-gray-400'>v4.0</span></h1>", unsafe_allow_html=True)
+    st.title("📋 Setting Jadwal")
+    thn = st.number_input("Tahun", value=2026)
+    bln = st.selectbox("Bulan", range(1, 13), index=3, format_func=lambda x: calendar.month_name[x])
+    label_mid = st.text_input("Label Shift Siang", "MIDDLE")
+    rotasi_hari = st.slider("Rotasi Tiap (Hari)", 1, 5, 2)
     
-    with st.expander("📅 Periode & General", expanded=True):
-        col_y, col_m = st.columns(2)
-        tahun = col_y.number_input("Tahun", value=2026)
-        bulan_idx = col_m.selectbox("Bulan", range(1, 13), index=3, format_func=lambda x: calendar.month_name[x])
-        label_siang = st.text_input("Nama Shift Siang", "MIDDLE")
-        rotasi = st.select_slider("Durasi Blok Shift", options=[1, 2, 3, 4], value=2)
+    st.subheader("👥 Tim Tandem")
+    tandem_txt = st.text_area("Nama1,Nama2", "SUBAWA,RAKA\nPRIMA,BELLA")
+    
+    st.subheader("👤 Tim Single")
+    single_txt = st.text_area("Nama", "WIRA\nDERY")
+    
+    st.subheader("🏖️ Libur Rutin")
+    libur_txt = st.text_area("Nama,Hari", "SUBAWA,RABU\nRAKA,JUMAT\nPRIMA,MINGGU\nBELLA,SABTU\nWIRA,SELASA\nDERY,KAMIS")
 
-    with st.expander("👥 Tim & Pasangan"):
-        tandem_in = st.text_area("Tandem (A,B)", "SUBAWA,RAKA\nPRIMA,BELLA")
-        single_in = st.text_area("Single (Nama saja)", "WIRA\nDERY")
-        
-    with st.expander("🏖️ Libur Rutin"):
-        libur_in = st.text_area("Nama,Hari", "SUBAWA,RABU\nRAKA,JUMAT\nPRIMA,MINGGU\nBELLA,SABTU\nWIRA,SELASA\nDERY,KAMIS")
+# === ENGINE LOGIC (DIPERTAHANKAN) ===
+def hitung_jadwal():
+    t_list = [x.split(',') for x in tandem_txt.split('\n') if ',' in x]
+    s_list = [x.strip().upper() for x in single_txt.split('\n') if x.strip()]
+    l_map = {x.split(',')[0].strip().upper(): x.split(',')[1].strip().upper() for x in libur_txt.split('\n') if ',' in x}
+    
+    semua_staf = []
+    for t in t_list: semua_staf.extend([t[0].strip().upper(), t[1].strip().upper()])
+    semua_staf.extend(s_list)
+    
+    _, hari_maks = calendar.monthrange(thn, bln)
+    h_indo = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU"]
+    
+    res = {e: {} for e in semua_staf}
 
-# === LOGIKA ENGINE (PENGOLAHAN DATA) ===
-def build_roster():
-    tandems = [t.split(',') for t in tandem_in.split('\n') if ',' in t]
-    singles = [s.strip().upper() for s in single_in.split('\n') if s.strip()]
-    libur_map = {l.split(',')[0].strip().upper(): l.split(',')[1].strip().upper() for l in libur_in.split('\n') if ',' in l}
-    
-    karyawan = []
-    for t in tandems: karyawan.extend([t[0].strip().upper(), t[1].strip().upper()])
-    karyawan.extend(singles)
-    
-    _, jml_hari = calendar.monthrange(tahun, bulan_idx)
-    hari_indo = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU"]
-    
-    res = {emp: {} for emp in karyawan}
-
-    # 1. Tandem Logic
-    for t in tandems:
+    # Logika Tandem
+    for t in t_list:
         e1, e2 = t[0].strip().upper(), t[1].strip().upper()
-        state_e1 = "PAGI"
-        day_cnt = 0
-        
-        for d in range(1, jml_hari + 1):
-            dt = date(tahun, bulan_idx, d)
-            h = hari_indo[dt.weekday()]
+        current_s1 = "PAGI"
+        cnt = 0
+        for d in range(1, hari_maks + 1):
+            dt = date(thn, bln, d)
+            hr = h_indo[dt.weekday()]
             
-            # Aturan Libur & Partner Cover
-            if libur_map.get(e1) == h: 
-                res[e1][d], res[e2][d], day_cnt = "OFF", "MID/FULL", 0
-            elif libur_map.get(e2) == h: 
-                res[e2][d], res[e1][d], day_cnt = "OFF", "MID/FULL", 0
+            if l_map.get(e1) == hr: res[e1][d], res[e2][d], cnt = "OFF", "MID/FULL", 0
+            elif l_map.get(e2) == hr: res[e2][d], res[e1][d], cnt = "OFF", "MID/FULL", 0
             else:
-                # Logika H-1 / H+1 (Sederhana dalam blok)
-                if day_cnt >= rotasi:
-                    state_e1 = label_siang if state_e1 == "PAGI" else "PAGI"
-                    day_cnt = 0
-                
-                res[e1][d] = state_e1
-                res[e2][d] = "PAGI" if state_e1 == label_siang else label_siang
-                day_cnt += 1
+                if cnt >= rotasi_hari:
+                    current_s1 = label_mid if current_s1 == "PAGI" else "PAGI"
+                    cnt = 0
+                res[e1][d] = current_s1
+                res[e2][d] = "PAGI" if current_s1 == label_mid else label_mid
+                cnt += 1
 
-    # 2. Single Logic (H-1 Pagi, H+1 Siang)
-    for s in singles:
-        for d in range(1, jml_hari + 1):
-            dt = date(tahun, bulan_idx, d)
-            h = hari_indo[dt.weekday()]
-            if libur_map.get(s) == h: res[s][d] = "OFF"
+    # Logika Single (H-1 Pagi, H+1 Siang)
+    for s in s_list:
+        for d in range(1, hari_maks + 1):
+            dt = date(thn, bln, d)
+            if l_map.get(s) == h_indo[dt.weekday()]: res[s][d] = "OFF"
             
-        for d in range(1, jml_hari + 1):
+        for d in range(1, hari_maks + 1):
             if res[s].get(d) == "OFF":
                 if d > 1: res[s][d-1] = "PAGI"
-                if d < jml_hari: res[s][d+1] = label_siang
+                if d < hari_maks: res[s][d+1] = label_mid
             elif not res[s].get(d):
                 res[s][d] = "PAGI"
+                
+    return res, semua_staf, hari_maks, h_indo
 
-    return res, karyawan, jml_hari, hari_indo
+# === TAMPILAN UTAMA ===
+st.title("Jadwal Kerja Otomatis")
 
-# === MAIN VIEW ===
-st.markdown("<div class='no-print'><h2 class='text-3xl font-bold text-gray-800'>Pratinjau Jadwal Kerja</h2><p class='text-gray-500 mb-6'>Atur parameter di sidebar dan cetak hasilnya dengan rapi.</p></div>", unsafe_allow_html=True)
-
-if st.sidebar.button("✨ GENERATE JADWAL", use_container_width=True):
-    data, emps, max_d, h_list = build_roster()
+if st.sidebar.button("GENERATE JADWAL", type="primary"):
+    data_final, staf_final, maks_d, h_nama_list = hitung_jadwal()
     
-    # Tombol Cetak dengan JS
+    # Tombol Cetak (HTML Button + Script)
     st.markdown("""
-        <div class='no-print mb-8'>
-            <button class='btn-print' onclick='window.print()'>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                CETAK JADWAL KE PDF / PRINTER
-            </button>
+        <div class="no-print">
+            <button class="print-btn" onclick="window.print()">🖨️ CETAK KE PDF (A4)</button>
         </div>
     """, unsafe_allow_html=True)
 
-    # Membangun Tabel HTML
-    html_table = f"""
+    # Membangun Tabel
+    html_output = f"""
     <div class="print-container">
-        <div class="text-center mb-6">
-            <h1 class="text-3xl font-extrabold tracking-tight">JADWAL KERJA OFFICE</h1>
-            <p class="text-xl text-gray-600 font-medium uppercase">{calendar.month_name[bulan_idx]} {tahun}</p>
-        </div>
-        <div class="table-container">
+        <center>
+            <h2 style="margin-bottom:0;">JADWAL KERJA KARYAWAN</h2>
+            <h3 style="margin-top:5px; text-transform:uppercase;">BULAN {calendar.month_name[bln]} {thn}</h3>
+        </center>
+        <div class="table-wrapper">
             <table class="roster-table">
                 <thead>
                     <tr>
                         <th rowspan="2">HARI</th>
                         <th rowspan="2">TGL</th>
-                        <th colspan="{len(emps)}">NAMA KARYAWAN</th>
+                        <th colspan="{len(staf_final)}">NAMA KARYAWAN</th>
                         <th rowspan="2">W</th>
                     </tr>
                     <tr>
-                        {" ".join([f"<th>{n}</th>" for n in emps])}
+                        {"".join([f"<th>{n}</th>" for n in staf_final])}
                     </tr>
                 </thead>
                 <tbody>
     """
 
-    for d in range(1, max_d + 1):
-        dt = date(tahun, bulan_idx, d)
-        h_nama = h_list[dt.weekday()]
+    for d in range(1, maks_d + 1):
+        dt = date(thn, bln, d)
+        h_str = h_nama_list[dt.weekday()]
         
-        # Style khusus weekend
-        row_cls = "bg-slate-50" if h_nama in ["SABTU", "MINGGU"] else ""
+        # Highlight Baris Weekend
+        row_bg = "style='background-color:#f1f5f9;'" if h_str in ["SABTU", "MINGGU"] else ""
         
-        html_table += f"<tr class='{row_cls}'><td>{h_nama}</td><td>{d}</td>"
+        html_output += f"<tr {row_bg}><td>{h_str}</td><td>{d}</td>"
         
-        for e in emps:
-            shift = data[e][d]
-            c_cls = ""
-            if shift == "OFF": c_cls = "s-off"
-            elif shift == "PAGI": c_cls = "s-pagi"
-            elif shift == "MID/FULL": c_cls = "s-full"
-            else: c_cls = "s-mid"
+        for s in staf_final:
+            val = data_final[s][d]
+            cls = ""
+            if val == "OFF": cls = "s-off"
+            elif val == "PAGI": cls = "s-pagi"
+            elif val == "MID/FULL": cls = "s-full"
+            else: cls = "s-mid"
             
-            html_table += f"<td class='{c_cls}'>{shift}</td>"
+            html_output += f"<td class='{cls}'>{val}</td>"
         
-        # Kolom Minggu Ke (Merged)
+        # Logika Gabung Minggu (W)
         if d == 1 or dt.weekday() == 0:
-            span = min(7 - dt.weekday(), (max_d - d) + 1)
-            w_no = dt.isocalendar()[1] - date(tahun, bulan_idx, 1).isocalendar()[1] + 1
-            html_table += f"<td rowspan='{span}' class='bg-gray-100 text-gray-400 text-xs'>{w_no}</td>"
+            span = min(7 - dt.weekday(), (maks_d - d) + 1)
+            # Hitung minggu ke berapa
+            first_day_val = date(thn, bln, 1).isocalendar()[1]
+            week_no = dt.isocalendar()[1] - first_day_val + 1
+            html_output += f"<td rowspan='{span}' style='background:#fff; color:#94a3b8;'>{week_no}</td>"
             
-        html_table += "</tr>"
+        html_output += "</tr>"
 
-    html_table += "</tbody></table></div></div>"
-    st.markdown(html_table, unsafe_allow_html=True)
-
+    html_output += "</tbody></table></div></div>"
+    st.markdown(html_output, unsafe_allow_html=True)
 else:
-    st.markdown("""
-        <div class='flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 rounded-3xl'>
-            <p class='text-gray-400 text-lg'>Klik tombol <b>Generate</b> untuk melihat keajaiban ✨</p>
-        </div>
-    """, unsafe_allow_html=True)
+    st.info("Atur parameter di sidebar lalu klik tombol Generate.")
