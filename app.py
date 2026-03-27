@@ -8,7 +8,7 @@ st.set_page_config(layout="wide", page_title="Roster Portrait Mode")
 # --- SIDEBAR INPUT ---
 with st.sidebar:
     st.header("📋 Data Penjadwalan")
-    divisi = st.text_input("Nama Divisi", "AGM1")
+    divisi = st.text_input("Nama Divisi", "OFFICE")
     tahun = st.number_input("Tahun", value=2026)
     bulan = st.selectbox("Bulan", range(1, 13), index=3, format_func=lambda x: calendar.month_name[x])
     label_mid = st.text_input("Label Shift Siang", "MIDDLE")
