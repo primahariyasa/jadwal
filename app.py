@@ -3,143 +3,160 @@ import pandas as pd
 import calendar
 from datetime import date
 
-st.set_page_config(layout="wide", page_title="Pilot Jadwal Otomatis")
+st.set_page_config(layout="wide", page_title="Sistem Jadwal Cerdas")
 
-st.title("🗓️ Aplikasi Pembuat Jadwal Kerja Otomatis")
-st.markdown("Aplikasi pilot untuk mengatur jadwal karyawan berpasangan (tandem) dan individu.")
+# --- KAMUS HARI & BULAN ---
+hari_indo = {"Senin": 0, "Selasa": 1, "Rabu": 2, "Kamis": 3, "Jumat": 4, "Sabtu": 5, "Minggu": 6}
+bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+              "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 
 # === SIDEBAR: PENGATURAN ===
 st.sidebar.header("⚙️ Pengaturan Jadwal")
 
-# 1. Setting Bulan & Tahun
 tahun = st.sidebar.number_input("Tahun", min_value=2024, max_value=2030, value=date.today().year)
-bulan = st.sidebar.selectbox("Bulan", range(1, 13), index=date.today().month - 1)
+bulan_idx = st.sidebar.selectbox("Bulan", range(1, 13), index=date.today().month - 1, format_func=lambda x: bulan_indo[x-1])
+nama_shift_siang = st.sidebar.radio("Sebutan Shift Siang/Sore:", ["Middle", "Siang"])
+blok_hari = st.sidebar.slider("Rotasi Selang-seling tiap berapa hari?", 1, 4, 2)
 
-# 2. Kustomisasi Shift
-nama_shift_siang = st.sidebar.radio("Sebutan untuk Shift Siang/Sore:", ["Middle", "Siang"])
+st.sidebar.subheader("👥 Karyawan Tandem")
+input_tandem = st.sidebar.text_area("Format: Nama1,Nama2", "Prima,Bella\nRaka,Subawa")
 
-# 3. Input Data Karyawan Tandem
-st.sidebar.subheader("👥 Karyawan Tandem (Partner)")
-st.sidebar.caption("Format: Nama1,Nama2 (pisahkan dengan koma/enter)")
-input_tandem = st.sidebar.text_area(
-    "Daftar Tandem", 
-    "Prima,Bella\nRaka,Subawa"
-)
+st.sidebar.subheader("👤 Karyawan Single")
+input_single = st.sidebar.text_area("Format: Nama", "Joko\nBudi")
 
-# 4. Input Data Karyawan Single
-st.sidebar.subheader("👤 Karyawan Tanpa Partner")
-st.sidebar.caption("Otomatis diset ke shift Pagi (atau sesuai input)")
-input_single = st.sidebar.text_area(
-    "Daftar Single (Format: Nama,Shift)", 
-    "Joko,Pagi\nBudi,Pagi"
-)
-
-# 5. Request Libur
-st.sidebar.subheader("🏖️ Request Libur")
-st.sidebar.caption("Format: Nama,Tanggal (Contoh: Prima,15 berarti Prima libur tgl 15)")
+st.sidebar.subheader("🏖️ Jadwal Libur Rutin")
 input_libur = st.sidebar.text_area(
-    "Daftar Request Libur", 
-    "Prima,15\nSubawa,10"
+    "Format: Nama,Hari Libur", 
+    "Prima,Minggu\nBella,Senin\nJoko,Sabtu"
 )
 
 # === LOGIKA PEMBUATAN JADWAL ===
-if st.button("🚀 Buat Jadwal Sekarang", type="primary"):
-    # Parsing input dari text area
-    tandem = [baris.split(',') for baris in input_tandem.split('\n') if ',' in baris]
-    single = [baris.split(',') for baris in input_single.split('\n') if ',' in baris]
-    libur = [baris.split(',') for baris in input_libur.split('\n') if ',' in baris]
+if st.button("🚀 Generate Kalender Jadwal", type="primary"):
+    # Parsing Input
+    tandem = [b.split(',') for b in input_tandem.split('\n') if ',' in b]
+    single = [b.strip() for b in input_single.split('\n') if b.strip()]
+    libur_rutin = [b.split(',') for b in input_libur.split('\n') if ',' in b]
 
-    # Menentukan jumlah hari dalam bulan terpilih
-    _, jml_hari = calendar.monthrange(tahun, bulan)
+    # Data waktu
+    _, jml_hari = calendar.monthrange(tahun, bulan_idx)
     daftar_hari = list(range(1, jml_hari + 1))
-
-    # Mengumpulkan semua nama karyawan
-    semua_karyawan = []
-    for t in tandem:
-        semua_karyawan.extend([t[0].strip(), t[1].strip()])
-    for s in single:
-        semua_karyawan.append(s[0].strip())
-
-    # Membuat DataFrame kosong
+    
+    semua_karyawan = [t[0].strip() for t in tandem] + [t[1].strip() for t in tandem] + single
     df_jadwal = pd.DataFrame(index=semua_karyawan, columns=daftar_hari)
 
-    # Langkah 1: Isi jadwal untuk Karyawan Single
-    for s in single:
-        nama_emp = s[0].strip()
-        shift_emp = s[1].strip()
-        df_jadwal.loc[nama_emp, :] = shift_emp
-
-    # Langkah 2: Proses aturan Request Libur
+    # 1. Tentukan Tanggal Libur berdasarkan Hari Rutin
     aturan_paksa = {emp: {} for emp in semua_karyawan}
-    for l in libur:
-        nama_emp = l[0].strip()
-        tgl_libur = int(l[1].strip())
-        
-        if nama_emp in aturan_paksa:
-            # Hari H = Libur
-            aturan_paksa[nama_emp][tgl_libur] = 'Libur'
-            # H-1 = Wajib Pagi
-            if tgl_libur > 1:
-                aturan_paksa[nama_emp][tgl_libur - 1] = 'Pagi'
-            # H+1 = Wajib Middle/Siang
-            if tgl_libur < jml_hari:
-                aturan_paksa[nama_emp][tgl_libur + 1] = nama_shift_siang
-
-    # Langkah 3: Isi jadwal untuk Karyawan Tandem (Selang-seling)
-    for t in tandem:
-        emp1 = t[0].strip()
-        emp2 = t[1].strip()
-
-        # Variabel untuk melacak shift terakhir agar bisa selang-seling
-        shift_terakhir_emp1 = nama_shift_siang # Set awal agar hari ke-1 emp1 dapat Pagi
-
-        for hari in daftar_hari:
-            # Cek apakah ada aturan paksa (efek libur) di hari ini
-            aturan1 = aturan_paksa[emp1].get(hari)
-            aturan2 = aturan_paksa[emp2].get(hari)
-
-            # Jika salah satu libur
-            if aturan1 == 'Libur':
-                df_jadwal.loc[emp1, hari] = 'Libur'
-                df_jadwal.loc[emp2, hari] = aturan2 if aturan2 else 'Pagi' # Partner otomatis Pagi jika tidak ada aturan lain
-            elif aturan2 == 'Libur':
-                df_jadwal.loc[emp2, hari] = 'Libur'
-                df_jadwal.loc[emp1, hari] = aturan1 if aturan1 else 'Pagi'
-            else:
-                s1 = aturan1
-                s2 = aturan2
-
-                # Jika emp1 ada aturan wajib (misal H-1 libur wajib Pagi)
-                if s1 and not s2:
-                    s2 = nama_shift_siang if s1 == 'Pagi' else 'Pagi' # Partner menyesuaikan
-                # Jika emp2 ada aturan wajib
-                elif s2 and not s1:
-                    s1 = nama_shift_siang if s2 == 'Pagi' else 'Pagi'
-                # Jika tidak ada aturan libur, lakukan selang-seling normal
-                elif not s1 and not s2:
-                    s1 = nama_shift_siang if shift_terakhir_emp1 == 'Pagi' else 'Pagi'
-                    s2 = 'Pagi' if s1 == nama_shift_siang else nama_shift_siang
-
-                # Simpan ke dataframe
-                df_jadwal.loc[emp1, hari] = s1
-                df_jadwal.loc[emp2, hari] = s2
-
-                # Catat shift terakhir (abaikan jika libur)
-                if s1 != 'Libur':
-                    shift_terakhir_emp1 = s1
-
-    # === TAMPILKAN HASIL ===
-    st.success(f"Berhasil membuat jadwal untuk Bulan {bulan} Tahun {tahun}!")
     
-    # Kustomisasi warna untuk memudahkan pembacaan di Streamlit
-    def color_coding(val):
-        color = ''
-        if val == 'Libur':
-            color = 'background-color: #ffcccc; color: red;'
-        elif val == 'Pagi':
-            color = 'background-color: #cce5ff; color: blue;'
-        elif val == 'Middle' or val == 'Siang':
-            color = 'background-color: #e5ffcc; color: green;'
-        return color
+    for l in libur_rutin:
+        emp = l[0].strip()
+        hari_libur = l[1].strip().capitalize()
+        if emp in aturan_paksa and hari_libur in hari_indo:
+            idx_hari_libur = hari_indo[hari_libur]
+            
+            # Cari semua tanggal di bulan ini yang jatuh pada hari tersebut
+            for tgl in daftar_hari:
+                if calendar.weekday(tahun, bulan_idx, tgl) == idx_hari_libur:
+                    aturan_paksa[emp][tgl] = 'Libur'
+                    if tgl > 1:
+                        aturan_paksa[emp][tgl - 1] = 'Pagi' # H-1 Wajib Pagi
+                    if tgl < jml_hari:
+                        aturan_paksa[emp][tgl + 1] = nama_shift_siang # H+1 Wajib Middle/Siang
 
-    st.dataframe(df_jadwal.style.map(color_coding), use_container_width=True)
+    # 2. Proses Karyawan Single
+    for emp in single:
+        for tgl in daftar_hari:
+            # Ikuti aturan libur/H-1/H+1, jika tidak ada, kembalikan ke default (Pagi)
+            df_jadwal.loc[emp, tgl] = aturan_paksa[emp].get(tgl, 'Pagi')
+
+    # 3. Proses Karyawan Tandem (Rotasi per Blok Hari)
+    for t in tandem:
+        emp1, emp2 = t[0].strip(), t[1].strip()
+        
+        shift_sekarang_e1 = 'Pagi'
+        counter_blok = 0
+
+        for tgl in daftar_hari:
+            at1 = aturan_paksa[emp1].get(tgl)
+            at2 = aturan_paksa[emp2].get(tgl)
+
+            # Jika ada yang libur
+            if at1 == 'Libur':
+                s1, s2 = 'Libur', (at2 if at2 and at2 != 'Libur' else 'Pagi')
+                counter_blok = 0 # Reset ritme
+            elif at2 == 'Libur':
+                s2, s1 = 'Libur', (at1 if at1 and at1 != 'Libur' else 'Pagi')
+                counter_blok = 0
+            else:
+                # Cek paksaan H-1/H+1
+                if at1 and not at2:
+                    s1 = at1
+                    s2 = nama_shift_siang if s1 == 'Pagi' else 'Pagi'
+                    shift_sekarang_e1 = s1
+                    counter_blok = 1
+                elif at2 and not at1:
+                    s2 = at2
+                    s1 = nama_shift_siang if s2 == 'Pagi' else 'Pagi'
+                    shift_sekarang_e1 = s1
+                    counter_blok = 1
+                else:
+                    # Rotasi normal menggunakan Blok Hari
+                    if counter_blok >= blok_hari:
+                        shift_sekarang_e1 = nama_shift_siang if shift_sekarang_e1 == 'Pagi' else 'Pagi'
+                        counter_blok = 0
+                    
+                    s1 = shift_sekarang_e1
+                    s2 = 'Pagi' if s1 == nama_shift_siang else nama_shift_siang
+                    counter_blok += 1
+            
+            df_jadwal.loc[emp1, tgl] = s1
+            df_jadwal.loc[emp2, tgl] = s2
+
+    # === TAMPILAN KALENDER HTML (SIAP CETAK) ===
+    st.markdown(f"<h2 style='text-align: center;'>Jadwal Kerja - {bulan_indo[bulan_idx-1]} {tahun}</h2>", unsafe_allow_html=True)
+    
+    # Render UI Kalender
+    cal_html = """
+    <style>
+        .calendar-table {width: 100%; border-collapse: collapse; font-family: sans-serif; table-layout: fixed;}
+        .calendar-table th {background-color: #4CAF50; color: white; border: 1px solid #ddd; padding: 10px; text-align: center;}
+        .calendar-table td {border: 1px solid #ddd; padding: 5px; vertical-align: top; height: 120px;}
+        .tgl-header {font-weight: bold; border-bottom: 1px solid #eee; margin-bottom: 5px; padding-bottom: 3px; color: #333;}
+        .shift-item {font-size: 12px; margin: 2px 0; padding: 2px 4px; border-radius: 3px;}
+        .shift-Pagi {background-color: #e3f2fd; color: #0d47a1;}
+        .shift-Middle {background-color: #e8f5e9; color: #1b5e20;}
+        .shift-Siang {background-color: #e8f5e9; color: #1b5e20;}
+        .shift-Libur {background-color: #ffebee; color: #b71c1c; font-weight: bold;}
+        
+        @media print {
+            body { -webkit-print-color-adjust: exact; }
+            .stSidebar, button { display: none !important; }
+            .calendar-table td { height: 100px; }
+        }
+    </style>
+    <table class="calendar-table">
+        <tr>
+            <th>Senin</th><th>Selasa</th><th>Rabu</th><th>Kamis</th><th>Jumat</th><th>Sabtu</th><th>Minggu</th>
+        </tr>
+    """
+
+    # Buat matriks kalender
+    cal_matrix = calendar.monthcalendar(tahun, bulan_idx)
+    
+    for minggu in cal_matrix:
+        cal_html += "<tr>"
+        for hari in minggu:
+            if hari == 0:
+                cal_html += "<td style='background-color: #f9f9f9;'></td>" # Hari kosong di awal/akhir bulan
+            else:
+                cal_html += f"<td><div class='tgl-header'>{hari}</div>"
+                for emp in semua_karyawan:
+                    shift = df_jadwal.loc[emp, hari]
+                    # Format tampilan: Prima (Pagi)
+                    cal_html += f"<div class='shift-item shift-{shift}'><b>{emp}</b>: {shift}</div>"
+                cal_html += "</td>"
+        cal_html += "</tr>"
+    cal_html += "</table>"
+
+    st.markdown(cal_html, unsafe_allow_html=True)
+    
+    st.info("💡 **Tips:** Untuk mencetak kalender ini secara rapi, Anda bisa langsung menekan **Ctrl + P** (Windows) atau **Cmd + P** (Mac) di browser Anda.")
