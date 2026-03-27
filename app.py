@@ -3,12 +3,12 @@ import streamlit.components.v1 as components
 import calendar
 from datetime import date
 
-st.set_page_config(layout="wide", page_title="Roster Pro v12")
+st.set_page_config(layout="wide", page_title="Roster Portrait Mode")
 
 # --- SIDEBAR INPUT ---
 with st.sidebar:
     st.header("📋 Data Penjadwalan")
-    divisi = st.text_input("Nama Divisi", "OFFICE")
+    divisi = st.text_input("Nama Divisi", "AGM1")
     tahun = st.number_input("Tahun", value=2026)
     bulan = st.selectbox("Bulan", range(1, 13), index=3, format_func=lambda x: calendar.month_name[x])
     label_mid = st.text_input("Label Shift Siang", "MIDDLE")
@@ -66,59 +66,51 @@ if st.sidebar.button("🚀 GENERATE JADWAL", type="primary", use_container_width
     <html>
     <head>
         <style>
-            body {{ font-family: 'Inter', Helvetica, Arial, sans-serif; background: white; margin: 0; padding: 10px; color: #333; }}
-            .container {{ width: 100%; margin: 0 auto; }}
+            body {{ font-family: Arial, sans-serif; background: white; margin: 0; padding: 5px; }}
+            .container {{ width: 100%; text-align: center; }}
             
-            .header-info {{ text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }}
-            .header-info h1 {{ font-size: 24px; margin: 0; letter-spacing: 1px; }}
-            .header-info h2 {{ font-size: 16px; margin: 5px 0; color: #666; }}
+            .header-info {{ margin-bottom: 10px; border-bottom: 2px solid black; padding-bottom: 5px; }}
+            .header-info h1 {{ font-size: 20px; margin: 0; }}
+            .header-info h2 {{ font-size: 14px; margin: 3px 0; color: #444; }}
 
             table {{ 
                 width: 100%; 
                 border-collapse: collapse; 
-                border: 2px solid black; 
-                table-layout: fixed; 
+                border: 2px solid black;
+                table-layout: auto; /* Dinamis untuk Portrait */
             }}
             
-            /* Header Tabel */
-            th {{ background: #2d3436; color: white; border: 1px solid black; padding: 6px 2px; font-size: 11px; }}
-            .col-hari {{ width: 70px; }}
-            .col-tgl {{ width: 45px; }}
-            .col-week {{ width: 50px; }}
-
-            /* Cell Tabel */
-            td {{ border: 1px solid black; padding: 5px 2px; text-align: center; font-size: 11px; font-weight: 700; }}
+            th {{ background: #222; color: white; border: 1px solid black; padding: 6px 2px; font-size: 10px; }}
+            td {{ border: 1px solid black; padding: 4px 1px; text-align: center; font-size: 10px; font-weight: bold; }}
             
-            /* Pembesaran Tanggal ala Kalender */
-            .tgl-cell {{ font-size: 16px !important; font-weight: 900 !important; color: #000; }}
-            .hari-cell {{ font-size: 11px; font-weight: 600; text-transform: uppercase; }}
+            /* Fokus Tanggal */
+            .tgl-cell {{ font-size: 14px !important; font-weight: 900 !important; width: 35px; }}
+            .hari-cell {{ font-size: 10px; width: 60px; text-transform: uppercase; }}
+            .minggu-cell {{ font-size: 12px !important; color: #000; width: 35px; }}
 
             /* Warna Shift */
-            .OFF {{ background-color: #d63031 !important; color: white !important; }}
-            .PAGI {{ background-color: #55efc4 !important; color: #003d2b !important; }}
-            .{label_mid} {{ background-color: #fdcb6e !important; color: #5d4000 !important; }}
-            .MID-FULL {{ background-color: #0984e3 !important; color: white !important; }}
-            
-            .week-label {{ font-size: 14px !important; color: #2d3436; }}
+            .OFF {{ background-color: #FF0000 !important; color: white !important; }}
+            .PAGI {{ background-color: #92D050 !important; color: black !important; }}
+            .{label_mid} {{ background-color: #FFFF00 !important; color: black !important; }}
+            .MID-FULL {{ background-color: #0070C0 !important; color: white !important; }}
 
-            .no-print-zone {{ text-align: center; margin-bottom: 20px; }}
+            .no-print-zone {{ text-align: center; margin-bottom: 15px; }}
             .btn-print {{ 
-                background: #00b894; color: white; border: none; padding: 12px 30px; 
-                border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                background: #00b894; color: white; border: none; padding: 10px 20px; 
+                border-radius: 4px; font-weight: bold; cursor: pointer;
             }}
 
             @media print {{
                 .no-print-zone {{ display: none; }}
-                @page {{ size: A4 landscape; margin: 8mm; }}
-                body {{ zoom: 82%; -webkit-print-color-adjust: exact; }}
-                table {{ width: 100% !important; }}
+                @page {{ size: A4 portrait; margin: 5mm; }}
+                body {{ zoom: 90%; -webkit-print-color-adjust: exact; }}
+                table {{ page-break-inside: avoid; }}
             }}
         </style>
     </head>
     <body>
         <div class="no-print-zone">
-            <button class="btn-print" onclick="window.print()">🖨️ PRINT JADWAL (A4 LANDSCAPE)</button>
+            <button class="btn-print" onclick="window.print()">🖨️ PRINT (PORTRAIT MODE)</button>
         </div>
         <div class="container">
             <div class="header-info">
@@ -131,7 +123,7 @@ if st.sidebar.button("🚀 GENERATE JADWAL", type="primary", use_container_width
                         <th class="col-hari">HARI</th>
                         <th class="col-tgl">TGL</th>
                         {" ".join([f"<th>{n}</th>" for n in staff])}
-                        <th class="col-week">WEEK</th>
+                        <th class="col-week">MINGGU</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -140,7 +132,7 @@ if st.sidebar.button("🚀 GENERATE JADWAL", type="primary", use_container_width
     for d in range(1, d_max + 1):
         dt = date(tahun, bulan, d)
         h_name = h_list[dt.weekday()]
-        row_bg = "background-color: #f8f9fa;" if h_name == "MINGGU" else ""
+        row_bg = "background-color: #f0f0f0;" if h_name == "MINGGU" else ""
         
         html_content += f"<tr style='{row_bg}'>"
         html_content += f"<td class='hari-cell'>{h_name}</td>"
@@ -151,15 +143,13 @@ if st.sidebar.button("🚀 GENERATE JADWAL", type="primary", use_container_width
             cls = val.replace("/", "-") if val else ""
             html_content += f"<td class='{cls}'>{val}</td>"
         
-        # Kolom Week (Keterangan Minggu)
         if d == 1 or dt.weekday() == 0:
             span = min(7 - dt.weekday(), (d_max - d) + 1)
             w_idx = (d + date(tahun, bulan, 1).weekday() - 1) // 7 + 1
-            html_content += f"<td rowspan='{span}' class='week-label'>Mgg {w_idx}</td>"
+            html_content += f"<td rowspan='{span}' class='minggu-cell'>{w_idx}</td>"
         html_content += "</tr>"
 
     html_content += "</tbody></table></div></body></html>"
     components.html(html_content, height=1200, scrolling=True)
-
 else:
     st.info("Atur parameter lalu klik Generate.")
